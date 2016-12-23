@@ -6,14 +6,16 @@
 //  Copyright © 2016 sjjwind. All rights reserved.
 //
 
-#import "ViewController.h"
+#import "MainViewController.h"
+#import "Command/dns/DNSResolver.h"
 
-@implementation ViewController
+@implementation MainViewController
 
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  // Do any additional setup after loading the view.
+  NSArray<NSString *> *dnsList = [[DNSResolver shareInstance] getDNSServerList];
+  NSLog(@"dnsList: %@", dnsList);
 }
 
 

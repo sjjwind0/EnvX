@@ -9,11 +9,15 @@
 /* Begin PBXBuildFile section */
 		46A48B161DF853C2006FF359 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 46A48B151DF853C2006FF359 /* AppDelegate.m */; };
 		46A48B191DF853C2006FF359 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 46A48B181DF853C2006FF359 /* main.m */; };
-		46A48B1C1DF853C2006FF359 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 46A48B1B1DF853C2006FF359 /* ViewController.m */; };
+		46A48B1C1DF853C2006FF359 /* MainViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 46A48B1B1DF853C2006FF359 /* MainViewController.m */; };
 		46A48B1E1DF853C2006FF359 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 46A48B1D1DF853C2006FF359 /* Assets.xcassets */; };
 		46A48B211DF853C2006FF359 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 46A48B1F1DF853C2006FF359 /* Main.storyboard */; };
 		46A48B2C1DF853C2006FF359 /* EnvXTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 46A48B2B1DF853C2006FF359 /* EnvXTests.m */; };
 		46A48B371DF853C2006FF359 /* EnvXUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = 46A48B361DF853C2006FF359 /* EnvXUITests.m */; };
+		46A48B531DF85B25006FF359 /* DNSResolver.m in Sources */ = {isa = PBXBuildFile; fileRef = 46A48B521DF85B25006FF359 /* DNSResolver.m */; };
+		46A48B571DF85B42006FF359 /* Command.m in Sources */ = {isa = PBXBuildFile; fileRef = 46A48B551DF85B42006FF359 /* Command.m */; };
+		46A48BBF1DF92C5C006FF359 /* SecurityInterface.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46A48BBE1DF92C5C006FF359 /* SecurityInterface.framework */; };
+		46F1E99A1DFD001B00133790 /* MainWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 46F1E9991DFD001B00133790 /* MainWindow.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,8 +42,8 @@
 		46A48B141DF853C2006FF359 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		46A48B151DF853C2006FF359 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		46A48B181DF853C2006FF359 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		46A48B1A1DF853C2006FF359 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
-		46A48B1B1DF853C2006FF359 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		46A48B1A1DF853C2006FF359 /* MainViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MainViewController.h; sourceTree = "<group>"; };
+		46A48B1B1DF853C2006FF359 /* MainViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MainViewController.m; sourceTree = "<group>"; };
 		46A48B1D1DF853C2006FF359 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		46A48B201DF853C2006FF359 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		46A48B221DF853C2006FF359 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -49,6 +53,13 @@
 		46A48B321DF853C2006FF359 /* EnvXUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EnvXUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		46A48B361DF853C2006FF359 /* EnvXUITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = EnvXUITests.m; sourceTree = "<group>"; };
 		46A48B381DF853C2006FF359 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		46A48B511DF85B25006FF359 /* DNSResolver.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DNSResolver.h; sourceTree = "<group>"; };
+		46A48B521DF85B25006FF359 /* DNSResolver.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DNSResolver.m; sourceTree = "<group>"; };
+		46A48B541DF85B42006FF359 /* Command.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Command.h; sourceTree = "<group>"; };
+		46A48B551DF85B42006FF359 /* Command.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Command.m; sourceTree = "<group>"; };
+		46A48BBE1DF92C5C006FF359 /* SecurityInterface.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SecurityInterface.framework; path = System/Library/Frameworks/SecurityInterface.framework; sourceTree = SDKROOT; };
+		46F1E9981DFD001B00133790 /* MainWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainWindow.h; sourceTree = "<group>"; };
+		46F1E9991DFD001B00133790 /* MainWindow.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MainWindow.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,6 +67,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				46A48BBF1DF92C5C006FF359 /* SecurityInterface.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,6 +95,7 @@
 				46A48B2A1DF853C2006FF359 /* EnvXTests */,
 				46A48B351DF853C2006FF359 /* EnvXUITests */,
 				46A48B121DF853C2006FF359 /* Products */,
+				46A48BBD1DF92C5C006FF359 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -99,14 +112,17 @@
 		46A48B131DF853C2006FF359 /* EnvX */ = {
 			isa = PBXGroup;
 			children = (
+				46A48B4F1DF85B25006FF359 /* Command */,
 				46A48B141DF853C2006FF359 /* AppDelegate.h */,
 				46A48B151DF853C2006FF359 /* AppDelegate.m */,
-				46A48B1A1DF853C2006FF359 /* ViewController.h */,
-				46A48B1B1DF853C2006FF359 /* ViewController.m */,
+				46A48B1A1DF853C2006FF359 /* MainViewController.h */,
+				46A48B1B1DF853C2006FF359 /* MainViewController.m */,
 				46A48B1D1DF853C2006FF359 /* Assets.xcassets */,
 				46A48B1F1DF853C2006FF359 /* Main.storyboard */,
 				46A48B221DF853C2006FF359 /* Info.plist */,
 				46A48B171DF853C2006FF359 /* Supporting Files */,
+				46F1E9981DFD001B00133790 /* MainWindow.h */,
+				46F1E9991DFD001B00133790 /* MainWindow.m */,
 			);
 			path = EnvX;
 			sourceTree = "<group>";
@@ -135,6 +151,33 @@
 				46A48B381DF853C2006FF359 /* Info.plist */,
 			);
 			path = EnvXUITests;
+			sourceTree = "<group>";
+		};
+		46A48B4F1DF85B25006FF359 /* Command */ = {
+			isa = PBXGroup;
+			children = (
+				46A48B501DF85B25006FF359 /* dns */,
+				46A48B541DF85B42006FF359 /* Command.h */,
+				46A48B551DF85B42006FF359 /* Command.m */,
+			);
+			path = Command;
+			sourceTree = "<group>";
+		};
+		46A48B501DF85B25006FF359 /* dns */ = {
+			isa = PBXGroup;
+			children = (
+				46A48B511DF85B25006FF359 /* DNSResolver.h */,
+				46A48B521DF85B25006FF359 /* DNSResolver.m */,
+			);
+			path = dns;
+			sourceTree = "<group>";
+		};
+		46A48BBD1DF92C5C006FF359 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				46A48BBE1DF92C5C006FF359 /* SecurityInterface.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -269,9 +312,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				46A48B1C1DF853C2006FF359 /* ViewController.m in Sources */,
+				46A48B1C1DF853C2006FF359 /* MainViewController.m in Sources */,
 				46A48B191DF853C2006FF359 /* main.m in Sources */,
+				46F1E99A1DFD001B00133790 /* MainWindow.m in Sources */,
+				46A48B571DF85B42006FF359 /* Command.m in Sources */,
 				46A48B161DF853C2006FF359 /* AppDelegate.m in Sources */,
+				46A48B531DF85B25006FF359 /* DNSResolver.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -498,6 +544,7 @@
 				46A48B3D1DF853C2006FF359 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		46A48B3E1DF853C2006FF359 /* Build configuration list for PBXNativeTarget "EnvXTests" */ = {
 			isa = XCConfigurationList;
@@ -506,6 +553,7 @@
 				46A48B401DF853C2006FF359 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		46A48B411DF853C2006FF359 /* Build configuration list for PBXNativeTarget "EnvXUITests" */ = {
 			isa = XCConfigurationList;
@@ -514,6 +562,7 @@
 				46A48B431DF853C2006FF359 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
