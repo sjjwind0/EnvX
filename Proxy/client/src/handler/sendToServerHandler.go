@@ -15,9 +15,9 @@ func NewSendToServerHandler() *sendToServerHandler {
 
 func (s *sendToServerHandler) DoSendEvent(loaclConn *conn.Conn, httpRequest *info.HTTPRequest) error {
 	if httpRequest.Method == "CONNECT" {
-		return doHTTPSRequest(conn, httpRequest)
+		return s.doHTTPSRequest(loaclConn, httpRequest)
 	} else {
-		return doHTTPRequest(conn, httpRequest)
+		return s.doHTTPRequest(loaclConn, httpRequest)
 	}
 }
 

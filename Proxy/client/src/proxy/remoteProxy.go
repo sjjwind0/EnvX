@@ -3,22 +3,21 @@ package proxy
 import (
 	"conn"
 	"fmt"
-	"info"
+	"handler"
+	"net"
 )
 
 type remoteProxy struct {
 	nativeAddr string
-	ruler      *rule.GFWRuleParser
 }
 
 func NewRemoteProxy(nativeAddr string) *remoteProxy {
 	return &remoteProxy{
 		nativeAddr: nativeAddr,
-		ruler:      rule.NewGFWRuleParser(),
 	}
 }
 
-func (n *remoteProxy) startListener() {
+func (n *remoteProxy) StartListener() {
 	var listener net.Listener
 	var err error
 	listener, err = net.Listen("tcp", n.nativeAddr)
@@ -35,15 +34,15 @@ func (n *remoteProxy) startListener() {
 		}
 		go func(n *remoteProxy, netConn net.Conn) {
 			defer netConn.Close()
-			p.handleConn(conn.CopyConn(netConn))
+			n.handleConn(conn.CopyConn(netConn))
 		}(n, newConn)
 	}
 }
 
 func (n *remoteProxy) handleConn(netConn *conn.Conn) {
-	request := handler.NewProxyListener().DoIOEvent(conn.CopyConn(netConn))
+	request := handler.NewProxyListener().DoIOEvent(netConn)
 	// send to server directlly
-	err := NewSendToServerHandler().DoSendEvent(netConn, request)
+	err := handler.NewSendToServerHandler().DoSendEvent(netConn, request)
 	if err != nil {
 		fmt.Println("remoteProxy handleRequest error:", err)
 	}

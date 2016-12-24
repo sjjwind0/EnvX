@@ -2,6 +2,7 @@ package handler
 
 import (
 	"conn"
+	"encoding/json"
 	"fmt"
 	"info"
 )
@@ -10,7 +11,7 @@ type sendToProxyHandler struct {
 	proxyAddr string
 }
 
-func NewSendToProxyHandler(addr string) {
+func NewSendToProxyHandler(addr string) *sendToProxyHandler {
 	return &sendToProxyHandler{proxyAddr: addr}
 }
 
@@ -18,10 +19,10 @@ func (s *sendToProxyHandler) DoSendEvent(loaclConn *conn.Conn, httpRequest *info
 	proxyConn, err := conn.NewTCPConn(s.proxyAddr)
 	if err != nil {
 		fmt.Println("connect proxy server error: ", err)
-		return
+		return err
 	}
 
-	data, err := json.Marshal(request)
+	data, err := json.Marshal(httpRequest)
 	if err != nil {
 		fmt.Println("encoding json error: ", err)
 		return err
@@ -36,7 +37,7 @@ func (s *sendToProxyHandler) DoSendEvent(loaclConn *conn.Conn, httpRequest *info
 	}
 	proxyConn.Write(headerByte)
 	proxyConn.Write(data)
-	if bodyBuffer != nil {
+	if httpRequest.ExtraData != nil {
 		proxyConn.Write(httpRequest.ExtraData)
 	}
 

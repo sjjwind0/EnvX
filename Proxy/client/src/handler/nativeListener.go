@@ -4,13 +4,14 @@ import (
 	"conn"
 	"fmt"
 	"info"
+	"io"
 	"strings"
 )
 
 type nativeListener struct {
 }
 
-func NewNativeListener() {
+func NewNativeListener() *nativeListener {
 	return new(nativeListener)
 }
 
@@ -45,18 +46,20 @@ func (n *nativeListener) DoIOEvent(netConn *conn.Conn) *info.HTTPRequest {
 		}
 	}
 	if totalSize == 0 {
-		return
+		fmt.Println("totalSize is 0")
+		return nil
 	}
-	return n.buildHTTPRequestFromFullBuffer(totalBuf, headerEndIndex)
+	sendBuffer := totalBuf[:totalSize]
+	return n.buildHTTPRequestFromFullBuffer(&sendBuffer, headerEndIndex)
 }
 
 func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endIndex int) *info.HTTPRequest {
 	var request *info.HTTPRequest = new(info.HTTPRequest)
-	if endIndex < totalSize {
-		request.ExtraData = totalBuf[endIndex:]
+	if endIndex < len(*totalBuf) {
+		request.ExtraData = (*totalBuf)[endIndex:]
 	}
 	// parse content to find https source addr info or http real request.
-	var header string = string(totalBuf[:totalSize])
+	var header string = string((*totalBuf))
 	headerLines := strings.Split(header, "\r\n")
 	firstLineContents := strings.Split(headerLines[0], " ")
 	request.Method = firstLineContents[0]
@@ -73,8 +76,8 @@ func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endInd
 	}
 	findIndex := strings.Index(request.URL[beginFindIndex:], ":")
 	if findIndex != -1 {
-		secondIndex1 := strings.Index(request.URL[findIndex:], "/") + findIndex
-		secondIndex2 := strings.Index(request.URL[findIndex:], "?") + findIndex
+		secondIndex1 := strings.Index(request.URL[findIndex:], "/")
+		secondIndex2 := strings.Index(request.URL[findIndex:], "?")
 		secondIndex := secondIndex1
 		if secondIndex > secondIndex2 {
 			secondIndex = secondIndex2
@@ -82,7 +85,6 @@ func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endInd
 		if secondIndex == -1 {
 			secondIndex = len(request.URL)
 		}
-		fmt.Println("url: ", request.URL)
 		port = request.URL[findIndex+1 : secondIndex]
 	}
 

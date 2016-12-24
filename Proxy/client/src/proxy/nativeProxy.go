@@ -3,7 +3,9 @@ package proxy
 import (
 	"conn"
 	"fmt"
-	"info"
+	"handler"
+	"net"
+	"rule"
 )
 
 type nativeProxy struct {
@@ -20,7 +22,7 @@ func NewNativeProxy(nativeAddr string, proxyAddr string) *nativeProxy {
 	}
 }
 
-func (n *nativeProxy) startListener() {
+func (n *nativeProxy) StartListener() {
 	var listener net.Listener
 	var err error
 	listener, err = net.Listen("tcp", n.nativeAddr)
@@ -37,20 +39,24 @@ func (n *nativeProxy) startListener() {
 		}
 		go func(n *nativeProxy, netConn net.Conn) {
 			defer netConn.Close()
-			p.handleConn(conn.CopyConn(netConn))
+			n.handleConn(conn.CopyConn(netConn))
 		}(n, newConn)
 	}
 }
 
 func (n *nativeProxy) handleConn(netConn *conn.Conn) {
 	var err error = nil
-	request := handler.NewNativeListener().DoIOEvent(conn.CopyConn(netConn))
-	if ruler.IsURLMatch(request.URL) {
+	request := handler.NewNativeListener().DoIOEvent(netConn)
+	if request == nil {
+		fmt.Println("request is null")
+		return
+	}
+	if n.ruler.IsURLMatched(request.URL) {
 		// send to proxy
-		err = NewSendToProxyHandler(n.proxyAddr).DoSendEvent(netConn, request)
+		err = handler.NewSendToProxyHandler(n.proxyAddr).DoSendEvent(netConn, request)
 	} else {
 		// send to server directlly
-		err = NewSendToServerHandler().DoSendEvent(netConn, request)
+		err = handler.NewSendToServerHandler().DoSendEvent(netConn, request)
 	}
 	if err != nil {
 		fmt.Println("nativeProxy handleRequest error:", err)

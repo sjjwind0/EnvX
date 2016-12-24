@@ -2,6 +2,7 @@ package handler
 
 import (
 	"conn"
+	"encoding/json"
 	"fmt"
 	"info"
 )
@@ -9,29 +10,29 @@ import (
 type proxyListener struct {
 }
 
-func NewProxyListener() {
+func NewProxyListener() *proxyListener {
 	return new(proxyListener)
 }
 
 func (n *proxyListener) DoIOEvent(netConn *conn.Conn) *info.HTTPRequest {
 	var buf []byte = make([]byte, 4)
-	_, err := conn.Read(buf)
+	_, err := netConn.Read(buf)
 	if err != nil {
 		fmt.Println("err: ", err)
-		return
+		return nil
 	}
 	dataSize := (((int)(buf[0])) << 24) | (((int)(buf[1])) << 16) | (((int)(buf[2])) << 8) | (int)(buf[3])
 	var header []byte = make([]byte, dataSize)
-	_, err = conn.Read(header)
+	_, err = netConn.Read(header)
 	if err != nil {
 		fmt.Println("read error: ", err)
-		return
+		return nil
 	}
-	var httpRequest HTTPRequest
+	var httpRequest info.HTTPRequest
 	err = json.Unmarshal(header, &httpRequest)
 	if err != nil {
 		fmt.Println("unmarshal error: ", err)
-		return
+		return nil
 	}
 	return &httpRequest
 }
