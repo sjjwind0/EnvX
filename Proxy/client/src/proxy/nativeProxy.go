@@ -51,13 +51,16 @@ func (n *nativeProxy) handleConn(netConn *conn.Conn) {
 		fmt.Println("request is null")
 		return
 	}
-	if n.ruler.IsURLMatched(request.URL) {
-		// send to proxy
-		err = handler.NewSendToProxyHandler(n.proxyAddr).DoSendEvent(netConn, request)
-	} else {
-		// send to server directlly
-		err = handler.NewSendToServerHandler().DoSendEvent(netConn, request)
-	}
+	err = handler.NewSendToProxyHandler(n.proxyAddr).DoSendEvent(netConn, request)
+	// if n.ruler.IsURLMatched(request.URL) {
+	// 	// send to proxy
+	// 	fmt.Println("send to proxy")
+	// 	err = handler.NewSendToProxyHandler(n.proxyAddr).DoSendEvent(netConn, request)
+	// } else {
+	// 	fmt.Println("send to native")
+	// 	// send to server directlly
+	// 	err = handler.NewSendToServerHandler().DoSendEvent(netConn, request)
+	// }
 	if err != nil {
 		fmt.Println("nativeProxy handleRequest error:", err)
 	}

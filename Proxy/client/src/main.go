@@ -42,8 +42,10 @@ func main() {
 
 	if startMode&kStartMode_Server != 0 {
 		if startMode&kStartMode_Client != 0 {
+			fmt.Println("start server")
 			go proxy.NewRemoteProxy(proxyAddr).StartListener()
 		} else {
+			fmt.Println("start server")
 			proxy.NewRemoteProxy(proxyAddr).StartListener()
 		}
 	}
@@ -62,6 +64,7 @@ func main() {
 			c <- true
 		})
 		<-c
+		fmt.Println("start client")
 		proxy.NewNativeProxy(clientAddr, proxyAddr).StartListener()
 	}
 }

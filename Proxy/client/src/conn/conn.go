@@ -33,6 +33,10 @@ func Copy(src io.Writer, dst io.Reader) error {
 	}
 }
 
+func CopyToNative(src io.Writer, dst io.Reader) error {
+	return nil
+}
+
 func NewTCPConn(addr string) (*Conn, error) {
 	c, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -64,6 +68,10 @@ func (c *Conn) Write(data []byte) (int, error) {
 
 func (c *Conn) Read(data []byte) (int, error) {
 	return c.c.Read(data)
+}
+
+func (c *Conn) ReadWithDecrypt() {
+
 }
 
 func (c *Conn) Ping() {
