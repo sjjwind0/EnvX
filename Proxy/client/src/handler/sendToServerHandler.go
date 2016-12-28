@@ -13,37 +13,39 @@ func NewSendToServerHandler() *sendToServerHandler {
 	return new(sendToServerHandler)
 }
 
-func (s *sendToServerHandler) DoSendEvent(loaclConn *conn.Conn, httpRequest *info.HTTPRequest) error {
+func (s *sendToServerHandler) DoSendEvent(loaclSock conn.Socket, httpRequest *info.HTTPRequest) error {
 	if httpRequest == nil {
 		return nil
 	}
 	if httpRequest.Method == "CONNECT" {
-		return s.doHTTPSRequest(loaclConn, httpRequest)
+		return s.doHTTPSRequest(loaclSock, httpRequest)
 	} else {
-		return s.doHTTPRequest(loaclConn, httpRequest)
+		return s.doHTTPRequest(loaclSock, httpRequest)
 	}
 }
 
-func (s *sendToServerHandler) doHTTPSRequest(nativeConn *conn.Conn, httpRequest *info.HTTPRequest) error {
-	serverConn, err := conn.NewTCPConn(httpRequest.Addr)
+func (s *sendToServerHandler) doHTTPSRequest(nativeSock conn.Socket, httpRequest *info.HTTPRequest) error {
+	serverSock := conn.NewTCPSocket(httpRequest.Addr)
+	err := serverSock.Connect()
 	if err != nil {
 		fmt.Println("connect", httpRequest.Addr, "failed:", err)
 		fmt.Println("httpRequest: ", httpRequest)
 		return err
 	}
 	// tell client, client success.
-	_, err = nativeConn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+	_, err = nativeSock.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
 	if err != nil {
 		fmt.Println("conn.Write failed: ", err)
 		return err
 	}
-	go conn.Copy(serverConn, nativeConn)
-	conn.Copy(nativeConn, serverConn)
+	go conn.Copy(serverSock, nativeSock)
+	conn.Copy(nativeSock, serverSock)
 	return nil
 }
 
-func (s *sendToServerHandler) doHTTPRequest(nativeConn *conn.Conn, httpRequest *info.HTTPRequest) error {
-	serverConn, err := conn.NewTCPConn(httpRequest.Addr)
+func (s *sendToServerHandler) doHTTPRequest(nativeSock conn.Socket, httpRequest *info.HTTPRequest) error {
+	serverSock := conn.NewTCPSocket(httpRequest.Addr)
+	err := serverSock.Connect()
 	if err != nil {
 		fmt.Println("new request error: ", err)
 		return err
@@ -61,18 +63,18 @@ func (s *sendToServerHandler) doHTTPRequest(nativeConn *conn.Conn, httpRequest *
 	rawHTTPRequest += "\r\n"
 	// write header info
 	go func() {
-		_, err = serverConn.Write([]byte(rawHTTPRequest))
+		_, err = serverSock.Write([]byte(rawHTTPRequest))
 		if err != nil {
 			fmt.Println("write raw header error: ", err)
 			return
 		}
 
 		if len(httpRequest.Body) != 0 {
-			serverConn.Write([]byte(httpRequest.Body))
+			serverSock.Write([]byte(httpRequest.Body))
 		}
-		conn.Copy(serverConn, nativeConn)
+		conn.Copy(serverSock, nativeSock)
 	}()
-	conn.Copy(nativeConn, serverConn)
+	conn.Copy(nativeSock, serverSock)
 
 	return nil
 }

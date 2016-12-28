@@ -15,8 +15,9 @@ func NewSendToProxyHandler(addr string) *sendToProxyHandler {
 	return &sendToProxyHandler{proxyAddr: addr}
 }
 
-func (s *sendToProxyHandler) DoSendEvent(loaclConn *conn.Conn, httpRequest *info.HTTPRequest) error {
-	proxyConn, err := conn.NewTCPConn(s.proxyAddr)
+func (s *sendToProxyHandler) DoSendEvent(localSock conn.Socket, httpRequest *info.HTTPRequest) error {
+	proxySock := conn.NewTCPSocket(s.proxyAddr)
+	err := proxySock.Connect()
 	if err != nil {
 		fmt.Println("connect proxy server error: ", err)
 		return err
@@ -35,13 +36,13 @@ func (s *sendToProxyHandler) DoSendEvent(loaclConn *conn.Conn, httpRequest *info
 		byte((dataSize & 0xFF00) >> 8),
 		byte(dataSize & 0xFF),
 	}
-	proxyConn.Write(headerByte)
-	proxyConn.Write(data)
+	proxySock.Write(headerByte)
+	proxySock.Write(data)
 	if httpRequest.ExtraData != nil {
-		proxyConn.Write(httpRequest.ExtraData)
+		proxySock.Write(httpRequest.ExtraData)
 	}
 
-	go conn.Copy(proxyConn, loaclConn)
-	conn.Copy(loaclConn, proxyConn)
+	go conn.Copy(proxySock, localSock)
+	conn.Copy(localSock, proxySock)
 	return nil
 }

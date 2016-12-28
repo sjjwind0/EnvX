@@ -34,8 +34,18 @@ func NewGFWRuleParser() *GFWRuleParser {
 	return new(GFWRuleParser)
 }
 
+func (g *GFWRuleParser) isGFWFileExist() bool {
+	_, err := os.Stat(gfwListFilePath)
+	return err == nil || os.IsExist(err)
+}
+
 func (g *GFWRuleParser) DownloadGFWRuleListFromIntenet(cb func(err error)) {
 	go func() {
+		if g.isGFWFileExist() {
+			fmt.Println("is eixt")
+			cb(nil)
+			return
+		}
 		rsp, err := http.Get(gfwListURL)
 		if err != nil {
 			fmt.Println("GFWRuleParser DownloadGFWRuleListFromIntenet failed: ", err)

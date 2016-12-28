@@ -15,7 +15,7 @@ func NewNativeListener() *nativeListener {
 	return new(nativeListener)
 }
 
-func (n *nativeListener) DoIOEvent(netConn *conn.Conn) *info.HTTPRequest {
+func (n *nativeListener) DoIOEvent(sock conn.Socket) *info.HTTPRequest {
 	var readBuf []byte = make([]byte, kProxyBufferSize)
 	var totalBuf []byte = nil
 	var totalSize int = 0
@@ -25,7 +25,7 @@ func (n *nativeListener) DoIOEvent(netConn *conn.Conn) *info.HTTPRequest {
 	 * if current request is http, we will get http header.
 	 */
 	for true {
-		readSize, err := netConn.Read(readBuf)
+		readSize, err := sock.Read(readBuf)
 		if err == io.EOF {
 			fmt.Println("readSize: ", readSize)
 			break
