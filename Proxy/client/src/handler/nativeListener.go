@@ -54,6 +54,7 @@ func (n *nativeListener) DoIOEvent(sock conn.Socket) *info.HTTPRequest {
 }
 
 func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endIndex int) *info.HTTPRequest {
+	fmt.Println("buildHTTPRequestFromFullBuffer")
 	var request *info.HTTPRequest = new(info.HTTPRequest)
 	if endIndex < len(*totalBuf) {
 		request.ExtraData = (*totalBuf)[endIndex:]
@@ -65,11 +66,14 @@ func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endInd
 	request.Method = firstLineContents[0]
 	request.URL = firstLineContents[1]
 	request.Addr = request.URL
+	fmt.Println("headerLines: ", headerLines)
 
 	var port string = "80"
 	var beginFindIndex int = 0
+	var isHttp bool = false
 	if strings.HasPrefix(request.URL, "http://") {
 		beginFindIndex = 7
+		isHttp = true
 	}
 	if strings.HasPrefix(request.URL, "https://") {
 		beginFindIndex = 8
@@ -85,13 +89,22 @@ func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endInd
 		if secondIndex == -1 {
 			secondIndex = len(request.URL)
 		}
+		fmt.Println("findIndex: ", findIndex)
+		fmt.Println("secondIndex: ", secondIndex)
+		fmt.Println("url: ", request.URL)
+		if findIndex+1 >= secondIndex {
+			if isHttp {
+				port = "80"
+			} else {
+				port = "443"
+			}
+		}
 		port = request.URL[findIndex+1 : secondIndex]
 	}
 
 	request.ProtocolVersion = firstLineContents[2]
 	for i := 1; i < len(headerLines); i++ {
 		if len(headerLines[i]) > 1 {
-			request.Header = append(request.Header, headerLines[i])
 			if strings.HasPrefix(headerLines[i], "Host: ") {
 				addr := headerLines[i][6:]
 				if strings.Index(addr, ":") == -1 {
@@ -99,7 +112,11 @@ func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endInd
 				} else {
 					request.Addr = addr
 				}
+			} else if strings.HasPrefix(headerLines[i], "Proxy-Connection: ") {
+				request.Header = append(request.Header, headerLines[i][6:])
+				continue
 			}
+			request.Header = append(request.Header, headerLines[i])
 		}
 	}
 	return request

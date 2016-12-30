@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -79,6 +80,7 @@ func AESEncrypt(encryptKey string, plaintext []byte) []byte {
 }
 
 func AESDecrypt(decryptKey []byte, ciphertext []byte) ([]byte, error) {
+	fmt.Println("len(ciphertext): ", len(ciphertext))
 	block, err := aes.NewCipher(decryptKey)
 	if err != nil {
 		return nil, err

@@ -17,6 +17,7 @@ func (s *sendToServerHandler) DoSendEvent(loaclSock conn.Socket, httpRequest *in
 	if httpRequest == nil {
 		return nil
 	}
+	fmt.Println("recv: ", httpRequest)
 	if httpRequest.Method == "CONNECT" {
 		return s.doHTTPSRequest(loaclSock, httpRequest)
 	} else {
@@ -61,6 +62,7 @@ func (s *sendToServerHandler) doHTTPRequest(nativeSock conn.Socket, httpRequest 
 		rawHTTPRequest += line + "\r\n"
 	}
 	rawHTTPRequest += "\r\n"
+	fmt.Println("raw: ", rawHTTPRequest)
 	// write header info
 	go func() {
 		_, err = serverSock.Write([]byte(rawHTTPRequest))

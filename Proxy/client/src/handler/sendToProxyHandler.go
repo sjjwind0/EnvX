@@ -16,8 +16,10 @@ func NewSendToProxyHandler(addr string) *sendToProxyHandler {
 }
 
 func (s *sendToProxyHandler) DoSendEvent(localSock conn.Socket, httpRequest *info.HTTPRequest) error {
-	proxySock := conn.NewTCPSocket(s.proxyAddr)
+	fmt.Println("sendToProxyHandler DoSendEvent: ", s.proxyAddr)
+	proxySock := conn.NewSecurityTCPSocket(s.proxyAddr)
 	err := proxySock.Connect()
+	fmt.Println("sendToProxyHandler DoSendEvent connect: ", err)
 	if err != nil {
 		fmt.Println("connect proxy server error: ", err)
 		return err

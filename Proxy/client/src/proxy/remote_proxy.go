@@ -33,7 +33,7 @@ func (n *remoteProxy) StartListener() {
 			return
 		}
 		go func(n *remoteProxy, netConn net.Conn) {
-			serverSock := conn.NewTCPSocketFromConn(netConn)
+			serverSock := conn.NewSecurityTCPSocketFromConn(netConn)
 			defer serverSock.Close()
 			err := serverSock.WaitingConnect()
 			if err != nil {

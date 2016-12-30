@@ -21,7 +21,7 @@ const (
 )
 
 type frame struct {
-	bodySize byte    // sizeof(flag) + size(body)
+	bodySize int     // sizeof(flag) + size(body)
 	flag     byte    // requestType
 	body     *[]byte // content
 }
@@ -39,11 +39,20 @@ func marshalFrameWithoutEncrypt(f *frame, key string) []byte {
 
 	if f.body != nil {
 		compressData := util.ZlibCompress(f.body)
-		outBytes.WriteByte(byte(len(compressData) + 1))
+
+		compressLength := len(compressData) + 1
+		lengthArray := []byte{
+			byte(compressLength >> 24),
+			byte((compressLength >> 16) & 0xFF),
+			byte((compressLength >> 8) & 0xFF),
+			byte(compressLength & 0xFF),
+		}
+		fmt.Println("length: ", lengthArray)
+		outBytes.Write(lengthArray)
 		outBytes.WriteByte(byte(f.flag))
 		outBytes.Write(compressData)
 	} else {
-		outBytes.WriteByte(1)
+		outBytes.Write([]byte{0, 0, 0, 1})
 		outBytes.WriteByte(byte(f.flag))
 	}
 
@@ -55,12 +64,22 @@ func marshalFrameWithEncrypt(f *frame, key string) []byte {
 	if f.body != nil {
 		out := util.AESEncrypt(key, *f.body)
 		compressData := util.ZlibCompress(&out)
+		fmt.Println("len(compressData): ", len(compressData))
 
-		outBytes.WriteByte(byte(1 + len(compressData)))
+		compressLength := len(compressData) + 1
+		lengthArray := []byte{
+			byte(compressLength >> 24),
+			byte((compressLength >> 16) & 0xFF),
+			byte((compressLength >> 8) & 0xFF),
+			byte(compressLength & 0xFF),
+		}
+		fmt.Println("length: ", lengthArray)
+		outBytes.Write(lengthArray)
+		// outBytes.WriteByte(byte(1 + len(compressData)))
 		outBytes.WriteByte(byte(f.flag))
 		outBytes.Write(compressData)
 	} else {
-		outBytes.WriteByte(1)
+		outBytes.Write([]byte{0, 0, 0, 1})
 		outBytes.WriteByte(byte(f.flag))
 	}
 
@@ -69,14 +88,13 @@ func marshalFrameWithEncrypt(f *frame, key string) []byte {
 
 func unmarshalFrame(bodySize int, body *[]byte, key []byte) (*frame, error) {
 	f := new(frame)
-	frameSize := bodySize
 	f.flag = (*body)[0]
 
 	fmt.Println("flag: ", f.flag)
 	frameBody := (*body)[1:]
 
 	var encryptData []byte = nil
-	if frameSize > 1 {
+	if bodySize > 1 {
 		var err error
 		fmt.Println("body: ", frameBody)
 		encryptData, err = util.ZlibUnCompress(&frameBody)
@@ -85,8 +103,10 @@ func unmarshalFrame(bodySize int, body *[]byte, key []byte) (*frame, error) {
 		}
 	}
 
+	fmt.Println("len(encryptData):", len(encryptData))
+
 	if f.flag == requestType_Hello || f.flag == requestType_ReplyHello || f.flag == requestType_AuthKey {
-		f.bodySize = byte(frameSize)
+		f.bodySize = bodySize
 		if encryptData != nil {
 			f.body = &encryptData
 		}
@@ -98,7 +118,7 @@ func unmarshalFrame(bodySize int, body *[]byte, key []byte) (*frame, error) {
 			}
 			f.body = &decryptedData
 		}
-		f.bodySize = byte(frameSize)
+		f.bodySize = bodySize
 	}
 	return f, nil
 }

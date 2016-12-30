@@ -243,9 +243,12 @@ func (s *SecurityTCPSocket) readNextFrameFromCache() (*frame, bool, error) {
 		return nil, false, nil
 	}
 	var frameLength int = 0
-	if s.cacheBuffer.Len() >= 1 {
-		frameLength = int(s.cacheBuffer.Bytes()[0])
+	if s.cacheBuffer.Len() >= 4 {
+		frameLength = (int(s.cacheBuffer.Bytes()[0]) << 24) | (int(s.cacheBuffer.Bytes()[1]) << 16) |
+			(int(s.cacheBuffer.Bytes()[2]) << 8) | int(s.cacheBuffer.Bytes()[3])
+		fmt.Println("cache frameLength: ", frameLength)
 		fmt.Println("cache flag: ", s.cacheBuffer.Bytes()[1])
+		fmt.Println("s.cacheBuffer.Bytes(): ", s.cacheBuffer.Bytes()[:4])
 	} else {
 		return nil, false, nil
 	}
@@ -257,7 +260,8 @@ func (s *SecurityTCPSocket) readNextFrameFromCache() (*frame, bool, error) {
 	if s.cacheBuffer.Len() < int(frameLength) {
 		return nil, true, nil
 	}
-	s.cacheBuffer.ReadByte()
+	var cacheLength []byte = make([]byte, 4)
+	s.cacheBuffer.Read(cacheLength)
 	frameBuffer := GetBufferPool().GetBuffer(int(frameLength))
 	defer GetBufferPool().PutBuffer(frameBuffer)
 	s.cacheBuffer.Read(*frameBuffer)
