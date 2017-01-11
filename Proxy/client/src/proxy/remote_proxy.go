@@ -2,9 +2,9 @@ package proxy
 
 import (
 	"conn"
+	"conn/socket"
 	"fmt"
 	"handler"
-	"net"
 )
 
 type remoteProxy struct {
@@ -18,34 +18,28 @@ func NewRemoteProxy(nativeAddr string) *remoteProxy {
 }
 
 func (n *remoteProxy) StartListener() {
-	var listener net.Listener
+	var listener socket.Listener
 	var err error
-	listener, err = net.Listen("tcp", n.nativeAddr)
+	listener, err = conn.Listen("sts", n.nativeAddr)
 	if err != nil {
 		fmt.Println("Error listening:", err)
 		return
 	}
 	defer listener.Close()
 	for {
-		newConn, err := listener.Accept()
+		acceptSocket, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Error accepting: ", err)
 			return
 		}
-		go func(n *remoteProxy, netConn net.Conn) {
-			serverSock := conn.NewSecurityTCPSocketFromConn(netConn)
-			defer serverSock.Close()
-			err := serverSock.WaitingConnect()
-			if err != nil {
-				fmt.Println("waiting error: ", err)
-				return
-			}
-			n.handleConn(serverSock)
-		}(n, newConn)
+		go func(n *remoteProxy, acceptSocket socket.Socket) {
+			defer acceptSocket.Close()
+			n.handleConn(acceptSocket)
+		}(n, acceptSocket)
 	}
 }
 
-func (n *remoteProxy) handleConn(sock conn.Socket) {
+func (n *remoteProxy) handleConn(sock socket.Socket) {
 	request := handler.NewProxyListener().DoIOEvent(sock)
 	// send to server directlly
 	err := handler.NewSendToServerHandler().DoSendEvent(sock, request)

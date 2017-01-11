@@ -2,9 +2,9 @@ package proxy
 
 import (
 	"conn"
+	"conn/socket"
 	"fmt"
 	"handler"
-	"net"
 	"rule"
 )
 
@@ -23,34 +23,28 @@ func NewNativeProxy(nativeAddr string, proxyAddr string) *nativeProxy {
 }
 
 func (n *nativeProxy) StartListener() {
-	var listener net.Listener
+	var listener socket.Listener
 	var err error
-	listener, err = net.Listen("tcp", n.nativeAddr)
+	listener, err = conn.Listen("tcp", n.nativeAddr)
 	if err != nil {
 		fmt.Println("Error listening:", err)
 		return
 	}
 	defer listener.Close()
 	for {
-		newConn, err := listener.Accept()
+		acceptSocket, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Error accepting: ", err)
 			return
 		}
-		go func(n *nativeProxy, netConn net.Conn) {
-			serverSock := conn.NewTCPSocketFromConn(netConn)
-			defer serverSock.Close()
-			err := serverSock.WaitingConnect()
-			if err != nil {
-				fmt.Println("waiting error: ", err)
-				return
-			}
-			n.handleConn(serverSock)
-		}(n, newConn)
+		go func(n *nativeProxy, acceptSocket socket.Socket) {
+			defer acceptSocket.Close()
+			n.handleConn(acceptSocket)
+		}(n, acceptSocket)
 	}
 }
 
-func (n *nativeProxy) handleConn(sock conn.Socket) {
+func (n *nativeProxy) handleConn(sock socket.Socket) {
 	var err error = nil
 	request := handler.NewNativeListener().DoIOEvent(sock)
 	if request == nil {

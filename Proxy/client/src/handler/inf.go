@@ -1,16 +1,16 @@
 package handler
 
 import (
-	"conn"
+	"conn/socket"
 	"info"
 )
 
 const kProxyBufferSize = 4 * 1024 // 4KB
 
 type IListenHander interface {
-	DoIOEvent(sock conn.Socket) *info.HTTPRequest
+	DoIOEvent(sock socket.Socket) *info.HTTPRequest
 }
 
 type ISendIOHandler interface {
-	DoSendEvent(loaclConn conn.Socket, httpRequest *info.HTTPRequest) error
+	DoSendEvent(loaclConn socket.Socket, httpRequest *info.HTTPRequest) error
 }

@@ -2,37 +2,35 @@ package conn
 
 import (
 	"conn/socket"
+	"errors"
 	"io"
-	"net"
 )
 
-const (
-	kCacheBufferSize = 4 * 1024 // 4KB
-)
+const kCacheBufferSize = 4 * 1024
 
-type Socket interface {
-	Addr() string
-	Connect() error
-	WaitingConnect() error
-	Read(readData []byte) (int, error)
-	Write(writeData []byte) (int, error)
-	Close()
+func Listen(net string, addr string) (socket.Socket, error) {
+	if net == "tcp" {
+		sock, err := socket.TCPSocketListen(addr)
+		return sock, err
+	} else if net == "sts" {
+		sock, err := socket.SecurityTCPSocketListen(addr)
+		return sock, err
+	}
+	return nil, errors.New("unspport net")
 }
 
-func NewTCPSocket(addr string) Socket {
-	return socket.NewClientTCPSocket(addr)
-}
-
-func NewSecurityTCPSocket(addr string) Socket {
-	return socket.NewSecurityClientTCPSocket(addr)
-}
-
-func NewTCPSocketFromConn(conn net.Conn) Socket {
-	return socket.NewServerTCPSocket(conn)
-}
-
-func NewSecurityTCPSocketFromConn(conn net.Conn) Socket {
-	return socket.NewSecurityServerTCPSocket(conn)
+func Dial(net string, addr string) (socket.Socket, error) {
+	var clientSocket socket.Socket = nil
+	if net == "tcp" {
+		clientSocket = socket.NewTCPSocket(addr)
+	} else if net == "sts" {
+		clientSocket = socket.NewSecurityTCPSocket(addr)
+	}
+	err := clientSocket.Connect()
+	if err != nil {
+		return nil, err
+	}
+	return clientSocket, err
 }
 
 func Copy(src io.Writer, dst io.Reader) error {

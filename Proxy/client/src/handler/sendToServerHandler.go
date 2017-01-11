@@ -2,6 +2,7 @@ package handler
 
 import (
 	"conn"
+	"conn/socket"
 	"fmt"
 	"info"
 )
@@ -13,7 +14,7 @@ func NewSendToServerHandler() *sendToServerHandler {
 	return new(sendToServerHandler)
 }
 
-func (s *sendToServerHandler) DoSendEvent(loaclSock conn.Socket, httpRequest *info.HTTPRequest) error {
+func (s *sendToServerHandler) DoSendEvent(loaclSock socket.Socket, httpRequest *info.HTTPRequest) error {
 	if httpRequest == nil {
 		return nil
 	}
@@ -25,9 +26,8 @@ func (s *sendToServerHandler) DoSendEvent(loaclSock conn.Socket, httpRequest *in
 	}
 }
 
-func (s *sendToServerHandler) doHTTPSRequest(nativeSock conn.Socket, httpRequest *info.HTTPRequest) error {
-	serverSock := conn.NewTCPSocket(httpRequest.Addr)
-	err := serverSock.Connect()
+func (s *sendToServerHandler) doHTTPSRequest(nativeSock socket.Socket, httpRequest *info.HTTPRequest) error {
+	serverSock, err := conn.Dial("tcp", httpRequest.Addr)
 	if err != nil {
 		fmt.Println("connect", httpRequest.Addr, "failed:", err)
 		fmt.Println("httpRequest: ", httpRequest)
@@ -44,9 +44,8 @@ func (s *sendToServerHandler) doHTTPSRequest(nativeSock conn.Socket, httpRequest
 	return nil
 }
 
-func (s *sendToServerHandler) doHTTPRequest(nativeSock conn.Socket, httpRequest *info.HTTPRequest) error {
-	serverSock := conn.NewTCPSocket(httpRequest.Addr)
-	err := serverSock.Connect()
+func (s *sendToServerHandler) doHTTPRequest(nativeSock socket.Socket, httpRequest *info.HTTPRequest) error {
+	serverSock, err := conn.Dial("tcp", httpRequest.Addr)
 	if err != nil {
 		fmt.Println("new request error: ", err)
 		return err

@@ -5,6 +5,8 @@ import (
 	"container/list"
 	"fmt"
 	"sync"
+	"time"
+	"util"
 )
 
 const (
@@ -12,8 +14,9 @@ const (
 )
 
 type socketPool struct {
-	socketMap map[string]*list.List
-	mutex     sync.Mutex
+	socketMap       map[string]*list.List
+	mutex           sync.Mutex
+	backgroundTimer *util.Timer
 }
 
 var socketPoolOnce sync.Once
@@ -22,15 +25,16 @@ var socketPoolInstance *socketPool
 func GetSocketPool() *socketPool {
 	socketPoolOnce.Do(func() {
 		socketPoolInstance = new(socketPool)
+		socketPoolInstance.StartBackgroundHandler()
 	})
 	return socketPoolInstance
 }
 
-func (s *socketPool) GetTCPSocket(addr string) Socket {
+func (s *socketPool) GetTCPSocket(addr string) socket.Socket {
 	return s.newTCPSocket(addr, false)
 }
 
-func (s *socketPool) GetSecuritySocket(addr string) Socket {
+func (s *socketPool) GetSecuritySocket(addr string) socket.Socket {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.socketMap == nil {
@@ -43,12 +47,12 @@ func (s *socketPool) GetSecuritySocket(addr string) Socket {
 	if socektList.Len() == 0 {
 		return s.newTCPSocket(addr, true)
 	}
-	sock := socektList.Front().Value.(Socket)
+	sock := socektList.Front().Value.(socket.Socket)
 	socektList.Remove(socektList.Front())
 	return sock
 }
 
-func (s *socketPool) Put(sock Socket) {
+func (s *socketPool) Put(sock socket.Socket) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if _, ok := sock.(*socket.SecurityTCPSocket); ok {
@@ -68,10 +72,56 @@ func (s *socketPool) Put(sock Socket) {
 	}
 }
 
-func (s *socketPool) newTCPSocket(addr string, isSecuritySocket bool) Socket {
-	if isSecuritySocket {
-		return NewSecurityTCPSocket(addr)
-	} else {
-		return NewTCPSocket(addr)
+func (s *socketPool) Remove(sock socket.Socket) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if _, ok := sock.(*socket.SecurityTCPSocket); ok {
+		if s.socketMap == nil {
+			return
+		}
+		addr := sock.Addr()
+		if _, ok := s.socketMap[addr]; !ok {
+			return
+		}
+		socektList := s.socketMap[addr]
+		for iter := socektList.Front(); iter != nil; iter = iter.Next() {
+			if iter.Value.(socket.Socket) == sock {
+				socektList.Remove(iter)
+			}
+		}
 	}
+}
+
+func (s *socketPool) newTCPSocket(addr string, isSecuritySocket bool) socket.Socket {
+	// if isSecuritySocket {
+	// 	return NewSecurityTCPSocket(addr)
+	// } else {
+	// 	return NewTCPSocket(addr)
+	// }
+	return nil
+}
+
+func (s *socketPool) StartBackgroundHandler() {
+	// send ping to server every 10 minutes.
+	s.backgroundTimer = util.NewRepeatingTimer()
+	s.backgroundTimer.Start(time.Minute*10, func() {
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
+
+		for _, socketList := range s.socketMap {
+			for iter := socketList.Front(); iter != nil; iter = iter.Next() {
+				sock := iter.Value.(*socket.SecurityTCPSocket)
+				sock.Ping()
+			}
+		}
+	})
+}
+
+func (s *socketPool) StopBackgroundHandler() {
+	s.backgroundTimer.Stop()
+}
+
+func (s *socketPool) OnClose(sock *socket.SecurityTCPSocket) {
+	fmt.Println("on close")
+	s.Put(sock)
 }

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"conn"
+	"conn/socket"
 	"fmt"
 	"info"
 	"io"
@@ -15,7 +15,7 @@ func NewNativeListener() *nativeListener {
 	return new(nativeListener)
 }
 
-func (n *nativeListener) DoIOEvent(sock conn.Socket) *info.HTTPRequest {
+func (n *nativeListener) DoIOEvent(sock socket.Socket) *info.HTTPRequest {
 	var readBuf []byte = make([]byte, kProxyBufferSize)
 	var totalBuf []byte = nil
 	var totalSize int = 0
@@ -54,7 +54,6 @@ func (n *nativeListener) DoIOEvent(sock conn.Socket) *info.HTTPRequest {
 }
 
 func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endIndex int) *info.HTTPRequest {
-	fmt.Println("buildHTTPRequestFromFullBuffer")
 	var request *info.HTTPRequest = new(info.HTTPRequest)
 	if endIndex < len(*totalBuf) {
 		request.ExtraData = (*totalBuf)[endIndex:]
@@ -83,7 +82,7 @@ func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endInd
 		secondIndex1 := strings.Index(request.URL[findIndex:], "/")
 		secondIndex2 := strings.Index(request.URL[findIndex:], "?")
 		secondIndex := secondIndex1
-		if secondIndex > secondIndex2 {
+		if secondIndex < secondIndex2 {
 			secondIndex = secondIndex2
 		}
 		if secondIndex == -1 {
@@ -98,8 +97,9 @@ func (n *nativeListener) buildHTTPRequestFromFullBuffer(totalBuf *[]byte, endInd
 			} else {
 				port = "443"
 			}
+		} else {
+			port = request.URL[findIndex+1 : secondIndex]
 		}
-		port = request.URL[findIndex+1 : secondIndex]
 	}
 
 	request.ProtocolVersion = firstLineContents[2]

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"conn"
+	"conn/socket"
 	"encoding/json"
 	"fmt"
 	"info"
@@ -15,11 +16,8 @@ func NewSendToProxyHandler(addr string) *sendToProxyHandler {
 	return &sendToProxyHandler{proxyAddr: addr}
 }
 
-func (s *sendToProxyHandler) DoSendEvent(localSock conn.Socket, httpRequest *info.HTTPRequest) error {
-	fmt.Println("sendToProxyHandler DoSendEvent: ", s.proxyAddr)
-	proxySock := conn.NewSecurityTCPSocket(s.proxyAddr)
-	err := proxySock.Connect()
-	fmt.Println("sendToProxyHandler DoSendEvent connect: ", err)
+func (s *sendToProxyHandler) DoSendEvent(localSock socket.Socket, httpRequest *info.HTTPRequest) error {
+	proxySock, err := conn.Dial("sts", s.proxyAddr)
 	if err != nil {
 		fmt.Println("connect proxy server error: ", err)
 		return err

@@ -7,21 +7,44 @@ import (
 	"net"
 )
 
-type TCPSocket struct {
-	conn net.Conn
-	addr string
+func TCPSocketListen(addr string) (*TCPSocket, error) {
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	return newServerTCPSocket(listener), nil
 }
 
-func NewClientTCPSocket(addr string) *TCPSocket {
+type TCPSocket struct {
+	conn           net.Conn
+	addr           string
+	socketListener net.Listener
+}
+
+func NewTCPSocket(addr string) *TCPSocket {
 	return &TCPSocket{addr: addr}
 }
 
-func NewServerTCPSocket(conn net.Conn) *TCPSocket {
+func newServerTCPSocket(listener net.Listener) *TCPSocket {
+	return &TCPSocket{socketListener: listener}
+}
+
+func newServerTCPSocketFromNetConn(conn net.Conn) *TCPSocket {
 	return &TCPSocket{conn: conn}
 }
 
 func (t *TCPSocket) Addr() string {
 	return t.addr
+}
+
+func (t *TCPSocket) Accept() (Socket, error) {
+	acceptConn, err := t.socketListener.Accept()
+	if err != nil {
+		fmt.Println("SecurityTCPSocket accept error:", err)
+		return nil, err
+	}
+	securityTCPSocket := newSecurityServerTCPSocketFromNetConn(acceptConn)
+	return securityTCPSocket, nil
 }
 
 func (t *TCPSocket) Connect() error {
@@ -31,10 +54,6 @@ func (t *TCPSocket) Connect() error {
 	var err error = nil
 	t.conn, err = net.Dial("tcp", t.addr)
 	return err
-}
-
-func (t *TCPSocket) WaitingConnect() error {
-	return nil
 }
 
 func (t *TCPSocket) Write(data []byte) (int, error) {

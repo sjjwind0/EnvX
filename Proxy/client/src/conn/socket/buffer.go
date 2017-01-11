@@ -45,6 +45,9 @@ func (b *bufferPool) GetBuffer(bufferSize int) *[]byte {
 }
 
 func (b *bufferPool) PutBuffer(data *[]byte) {
+	if data == nil {
+		return
+	}
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	var bufferSize = len(*data)

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"conn"
+	"conn/socket"
 	"encoding/json"
 	"fmt"
 	"info"
@@ -14,7 +14,7 @@ func NewProxyListener() *proxyListener {
 	return new(proxyListener)
 }
 
-func (n *proxyListener) DoIOEvent(sock conn.Socket) *info.HTTPRequest {
+func (n *proxyListener) DoIOEvent(sock socket.Socket) *info.HTTPRequest {
 	var buf []byte = make([]byte, 4)
 	_, err := sock.Read(buf)
 	if err != nil {

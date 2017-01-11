@@ -2,7 +2,6 @@ package socket
 
 import (
 	"bytes"
-	"fmt"
 	"util"
 )
 
@@ -26,6 +25,13 @@ type frame struct {
 	body     *[]byte // content
 }
 
+type stsFrame struct {
+	bodySize int
+	flag     byte
+	sid      byte
+	body     *[]byte
+}
+
 func marshalFrame(f *frame, key string) []byte {
 	if f.flag == requestType_Hello || f.flag == requestType_ReplyHello ||
 		f.flag == requestType_AuthKey {
@@ -47,7 +53,6 @@ func marshalFrameWithoutEncrypt(f *frame, key string) []byte {
 			byte((compressLength >> 8) & 0xFF),
 			byte(compressLength & 0xFF),
 		}
-		fmt.Println("length: ", lengthArray)
 		outBytes.Write(lengthArray)
 		outBytes.WriteByte(byte(f.flag))
 		outBytes.Write(compressData)
@@ -64,7 +69,6 @@ func marshalFrameWithEncrypt(f *frame, key string) []byte {
 	if f.body != nil {
 		out := util.AESEncrypt(key, *f.body)
 		compressData := util.ZlibCompress(&out)
-		fmt.Println("len(compressData): ", len(compressData))
 
 		compressLength := len(compressData) + 1
 		lengthArray := []byte{
@@ -73,7 +77,6 @@ func marshalFrameWithEncrypt(f *frame, key string) []byte {
 			byte((compressLength >> 8) & 0xFF),
 			byte(compressLength & 0xFF),
 		}
-		fmt.Println("length: ", lengthArray)
 		outBytes.Write(lengthArray)
 		// outBytes.WriteByte(byte(1 + len(compressData)))
 		outBytes.WriteByte(byte(f.flag))
@@ -89,21 +92,16 @@ func marshalFrameWithEncrypt(f *frame, key string) []byte {
 func unmarshalFrame(bodySize int, body *[]byte, key []byte) (*frame, error) {
 	f := new(frame)
 	f.flag = (*body)[0]
-
-	fmt.Println("flag: ", f.flag)
 	frameBody := (*body)[1:]
 
 	var encryptData []byte = nil
 	if bodySize > 1 {
 		var err error
-		fmt.Println("body: ", frameBody)
 		encryptData, err = util.ZlibUnCompress(&frameBody)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	fmt.Println("len(encryptData):", len(encryptData))
 
 	if f.flag == requestType_Hello || f.flag == requestType_ReplyHello || f.flag == requestType_AuthKey {
 		f.bodySize = bodySize
