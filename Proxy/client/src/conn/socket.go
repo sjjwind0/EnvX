@@ -21,12 +21,19 @@ func Listen(net string, addr string) (socket.Socket, error) {
 
 func Dial(net string, addr string) (socket.Socket, error) {
 	var clientSocket socket.Socket = nil
+	var err error = nil
 	if net == "tcp" {
 		clientSocket = socket.NewTCPSocket(addr)
+		err = clientSocket.Connect()
 	} else if net == "sts" {
-		clientSocket = socket.NewSecurityTCPSocket(addr)
+		var realSocket *socket.RealSecurityTCPSocket = nil
+		realSocket, err = socket.NewSecurityTCPSocket(addr)
+		if err != nil {
+			return nil, err
+		}
+		realSocket.Connect()
+		clientSocket = realSocket.NewVirtualSocket()
 	}
-	err := clientSocket.Connect()
 	if err != nil {
 		return nil, err
 	}

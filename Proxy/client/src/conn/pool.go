@@ -121,7 +121,7 @@ func (s *socketPool) StopBackgroundHandler() {
 	s.backgroundTimer.Stop()
 }
 
-func (s *socketPool) OnClose(sock *socket.SecurityTCPSocket) {
+func (s *socketPool) OnClose(sock *socket.VirtualSecurityTCPSocket) {
 	fmt.Println("on close")
 	s.Put(sock)
 }
