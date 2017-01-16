@@ -30,7 +30,6 @@ type VirtualSecurityTCPSocket struct {
 	// about connect
 	sid           int
 	realTCPSocket *RealSecurityTCPSocket
-	status        int
 	stopError     error
 
 	cacheBuffer     bytes.Buffer
@@ -42,11 +41,21 @@ type VirtualSecurityTCPSocket struct {
 
 	sendTimer util.Timer
 
+	readNotifyLocker *sync.Mutex
+	readNotifyCond   *sync.Cond
+
 	securityListener SecurityListener
 }
 
-func NewVirtualSecurityTCPSocket(sid int, realTCPSocket *securityBasicSocket) *VirtualSecurityTCPSocket {
-	return &VirtualSecurityTCPSocket{sid: sid, realTCPSocket: realTCPSocket}
+func NewVirtualSecurityTCPSocket(sid int, realTCPSocket *RealSecurityTCPSocket) *VirtualSecurityTCPSocket {
+	ret := &VirtualSecurityTCPSocket{sid: sid, realTCPSocket: realTCPSocket}
+	ret.init()
+	return ret
+}
+
+func (v *VirtualSecurityTCPSocket) init() {
+	v.readNotifyLocker = new(sync.Mutex)
+	v.readNotifyCond = sync.NewCond(v.readNotifyLocker)
 }
 
 func (v *VirtualSecurityTCPSocket) SetListener(listener SecurityListener) {
@@ -54,7 +63,7 @@ func (v *VirtualSecurityTCPSocket) SetListener(listener SecurityListener) {
 }
 
 func (v *VirtualSecurityTCPSocket) Read(readData []byte) (int, error) {
-	readSize, err := realTCPSocket.readVirtualData(v.sid, readData)
+	readSize, err := v.realTCPSocket.readVirtualData(v.sid, readData)
 	return readSize, err
 }
 
@@ -64,13 +73,11 @@ func (v *VirtualSecurityTCPSocket) Write(writeData []byte) (int, error) {
 }
 
 func (v *VirtualSecurityTCPSocket) Close() {
-	v.status = status_Closed
 	fmt.Println("VirtualSecurityTCPSocket Close")
 	// only send close pacakge, do not close tcp channel.
-	buffer := newCloseBuffer(string(v.aesKey))
-	v.writeAll(buffer)
+	v.realTCPSocket.closeSocketBySid(v.sid)
 	if v.securityListener != nil {
-		v.securityListener.OnClose(s)
+		v.securityListener.OnClose(v)
 	}
 }
 

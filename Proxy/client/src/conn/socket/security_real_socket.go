@@ -2,35 +2,35 @@ package socket
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
+	"math/rand"
 	"net"
 	"sync"
+	"time"
+	"util"
 )
 
-func SecurityTCPSocketListen(addr string) (*VirtualSecurityTCPSocket, error) {
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-	sock := NewRealSecurityTCPSocket(addr, listener)
-	return sock, err
+func NewRealSecurityTCPSocket(tcpConn net.Conn) *RealSecurityTCPSocket {
+	return &RealSecurityTCPSocket{tcpConn: tcpConn}
 }
 
-func NewSecurityTCPSocket() (*RealSecurityTCPSocket, error) {
-	return &RealSecurityTCPSocket
-}
-
-func NewRealSecurityTCPSocket(addr string, netListener net.Listener) {
-	return &RealSecurityTCPSocket{addr: addr, netListener: netListener}
+func NewRealSecurityTCPSocketWithAddr(addr string) *RealSecurityTCPSocket {
+	return &RealSecurityTCPSocket{addr: addr}
 }
 
 type RealSecurityTCPSocket struct {
-	netListener net.Listener
-	tcpConn     net.Conn
+	// origin net data
+	addr    string
+	tcpConn net.Conn
 
-	addr            string
-	currentSid      int
-	allAcceptSocket map[int]*VirtualSecurityTCPSocket
+	currentSid            int
+	allAcceptSocket       map[int]*VirtualSecurityTCPSocket
+	allAcceptSocketLocker *sync.RWMutex
+	cacheBuffer           bytes.Buffer
+	acceptLocker          *sync.Mutex
+	acceptCond            *sync.Cond
 
 	// about security
 	publicRSAKey  []byte
@@ -41,28 +41,9 @@ type RealSecurityTCPSocket struct {
 	// locker
 	locker *sync.Mutex
 	cond   *sync.Cond
-}
 
-func (s *RealSecurityTCPSocket) Accept() (Socket, error) {
-	if s.allAcceptSocket == nil {
-		s.allAcceptSocket = make(map[int]*VirtualSecurityTCPSocket)
-
-		var err error = nil
-		s.tcpConn, err = s.netListener.Accept()
-		if err != nil {
-			fmt.Println("RealSecurityTCPSocket Accept failed:", err)
-			return nil, err
-		}
-		err = s.waitingConnect()
-		if err != nil {
-			return nil, err
-		}
-	}
-	return s.NewVirtualSocket(), nil
-}
-
-func (s *RealSecurityTCPSocket) Addr() string {
-	return s.addr
+	status     int
+	signalType int
 }
 
 func (s *RealSecurityTCPSocket) Close() {
@@ -70,7 +51,7 @@ func (s *RealSecurityTCPSocket) Close() {
 }
 
 func (s *RealSecurityTCPSocket) Connect() error {
-	if s.status == status_Init {
+	if s.status != status_Init {
 		return errors.New("socket has connected")
 	}
 	s.status = status_Init
@@ -109,25 +90,40 @@ func (s *RealSecurityTCPSocket) Connect() error {
 	s.status = status_Transfering
 	s.startBackgroundReadTask()
 	s.startBackgroundWriteTask()
-	fmt.Println("connect success")
 	return nil
 }
 
 func (r *RealSecurityTCPSocket) NewVirtualSocket() Socket {
-	virtualSid := currentSid
-	s.currentSid = s.currentSid + 1
-	virtualSocket := newSecurityServerTCPSocket(virtualSid, s)
-	s.allAcceptSocket[virtualSid] = virtualSocket
+	if r.allAcceptSocket == nil {
+		r.allAcceptSocket = make(map[int]*VirtualSecurityTCPSocket)
+		r.allAcceptSocketLocker = new(sync.RWMutex)
+	}
+	virtualSid := r.currentSid
+	r.currentSid = r.currentSid + 1
+	virtualSocket := NewVirtualSecurityTCPSocket(virtualSid, r)
+	r.allAcceptSocketLocker.Lock()
+	r.allAcceptSocket[virtualSid] = virtualSocket
+	r.allAcceptSocketLocker.Unlock()
+	return virtualSocket
+}
+
+func (r *RealSecurityTCPSocket) NewClientVirtualSocket() Socket {
+	if r.currentSid == 0 {
+		return r.NewVirtualSocket()
+	}
+
+	virtualSocket := r.NewVirtualSocket()
+	r.NewRequest()
 	return virtualSocket
 }
 
 func (s *RealSecurityTCPSocket) NewRequest() {
-	if s.status == status_Closed {
+	if s.status == status_Transfering {
 		fmt.Println("VirtualSecurityTCPSocket NewRequest")
 		buffer := newNewRequestBuffer(string(s.aesKey))
 		s.writeAll(buffer)
 	} else {
-		fmt.Println("now socekt is not closed")
+		fmt.Println("now socekt is not working")
 	}
 }
 
@@ -225,7 +221,6 @@ func (s *RealSecurityTCPSocket) readNextFrame() (*frame, error) {
 		nextFrame, err = s.readNextFrameFromCache()
 		if err != nil {
 			fmt.Println("SecurityTCPSocket startBackgroundReadTask nextFrame error:", err)
-			s.stopError = err
 			return nil, err
 		}
 		if nextFrame != nil {
@@ -261,72 +256,106 @@ func (s *RealSecurityTCPSocket) readNextFrameFromCache() (*frame, error) {
 func (s *RealSecurityTCPSocket) startBackgroundReadTask() {
 	go func() {
 		for {
+			fmt.Println("startBackgroundTask")
+			var needNotify bool = false
+			var notifySidMap map[int]bool = make(map[int]bool)
 			nextFrame, err := s.readNextFrame()
-			if err != nil {
-				fmt.Println("SecurityTCPSocket startBackgroundReadTask nextFrame error:", err)
-				s.stopError = err
-				return
-			}
-			if nextFrame == nil {
-				break
-			}
-			switch nextFrame.flag {
-			case requestType_Ping:
-				fmt.Println("ping")
-				if s.status != status_Closed {
-					s.stopError = errors.New("socket is not closed")
+			for {
+				if err != nil {
+					fmt.Println("SecurityTCPSocket startBackgroundReadTask nextFrame error:", err)
 					return
 				}
-			default:
-				stsFrame := translateToStsFrame(nextFrame)
-				frameSocket := s.allAcceptSocket[stsFrame.sid]
-				switch stsFrame.flag {
-				case reqeustType_Content:
-					if frameSocket.status != status_Transfering {
-						frameSocket.stopError = errors.New("socket is not working")
-						return
-					}
-					frameSocket.readDataBuffer.Write(*nextFrame.body)
-				case requestType_Close:
-					fmt.Println("socket closed")
-					frameSocket.stopError = Close
-				case requestType_Error:
-					frameSocket.stopError = errors.New(string(*nextFrame.body))
-				case reqeustType_NewRequest:
-					if frameSocket.status != status_Closed {
-						frameSocket.stopError = errors.New("socket is not closed")
-						return
-					}
-					frameSocket.stopError = nil
-					frameSocket.readDataBuffer.Reset()
-					frameSocket.writeDataBuffer.Reset()
-					frameSocket.cacheBuffer.Reset()
+				if nextFrame == nil {
+					break
 				}
+				switch nextFrame.flag {
+				case requestType_Ping:
+					fmt.Println("ping")
+					if s.status != status_Closed {
+						return
+					}
+				default:
+					stsFrame := translateToStsFrame(nextFrame)
+					s.allAcceptSocketLocker.Lock()
+					frameSocket, ok := s.allAcceptSocket[stsFrame.sid]
+					if !ok {
+						fmt.Println("not exist socket")
+						s.allAcceptSocketLocker.Unlock()
+						break
+					}
+					switch stsFrame.flag {
+					case reqeustType_Content:
+						if s.status != status_Transfering {
+							fmt.Println("status error")
+							frameSocket.stopError = errors.New("socket is not working")
+							s.allAcceptSocketLocker.Unlock()
+							break
+						}
+						frameSocket.readLocker.Lock()
+						frameSocket.readDataBuffer.Write((*nextFrame.body)[nextFrame.pos:])
+						frameSocket.readLocker.Unlock()
+						needNotify = true
+						notifySidMap[stsFrame.sid] = true
+					case requestType_Close:
+						fmt.Println("socket closed")
+						frameSocket.stopError = Close
+						delete(s.allAcceptSocket, stsFrame.sid)
+					case requestType_Error:
+						frameSocket.stopError = errors.New(string(*nextFrame.body))
+						delete(s.allAcceptSocket, stsFrame.sid)
+					case reqeustType_NewRequest:
+						if s.status != status_Transfering {
+							fmt.Println("status error:", s.status)
+							frameSocket.stopError = errors.New("socket is not closed")
+							s.allAcceptSocketLocker.Unlock()
+							break
+						}
+						fmt.Println("singal")
+						frameSocket.stopError = nil
+						frameSocket.readDataBuffer.Reset()
+						frameSocket.writeDataBuffer.Reset()
+						frameSocket.cacheBuffer.Reset()
+
+						s.acceptCond.Signal()
+					}
+					s.allAcceptSocketLocker.Unlock()
+				}
+				nextFrame, err = s.readNextFrameFromCache()
+			}
+			if needNotify {
+				s.allAcceptSocketLocker.RLock()
+				for sid, _ := range notifySidMap {
+					frameSocket := s.allAcceptSocket[sid]
+					frameSocket.readNotifyCond.Signal()
+				}
+				s.allAcceptSocketLocker.RUnlock()
 			}
 		}
 	}()
 }
 
 func (s *RealSecurityTCPSocket) startOneWriteTask(sid int) {
+	s.allAcceptSocketLocker.RLock()
 	sock := s.allAcceptSocket[sid]
+	s.allAcceptSocketLocker.RUnlock()
 	sock.sendTimer.Stop()
 	var writeBuffer *[]byte = nil
 	var nextFrameSize int = kFrameBufferSize
 	var nextMinFrameSize int = kFrameBufferSize
+	sock.writeLocker.Lock()
 	for {
-		sock.writeLocker.Lock()
 		if sock.hasWriteData() {
 			if sock.writeDataBuffer.Len() >= nextMinFrameSize {
 				if writeBuffer == nil {
 					writeBuffer = GetBufferPool().GetBuffer(nextFrameSize)
 				}
 				sock.writeDataBuffer.Read(*writeBuffer)
-				sock.writeInBackground(*writeBuffer)
+				s.writeInBackground(sid, *writeBuffer)
 				if nextMinFrameSize == 0 {
 					break
 				}
 			} else {
-				if sock.signalType == signalType_Timer {
+				if s.signalType == signalType_Timer {
 					GetBufferPool().PutBuffer(writeBuffer)
 					writeBuffer = nil
 					nextMinFrameSize = 0
@@ -338,36 +367,39 @@ func (s *RealSecurityTCPSocket) startOneWriteTask(sid int) {
 					break
 				}
 				sock.sendTimer.Start(time.Second*1, func() {
-					sock.signalType = signalType_Timer
-					sock.cond.Signal()
+					s.signalType = signalType_Timer
+					s.cond.Signal()
 				})
 				break
 			}
+		} else {
+			break
 		}
-		sock.writeLocker.Unlock()
-		GetBufferPool().PutBuffer(writeBuffer)
 	}
+	sock.writeLocker.Unlock()
+	GetBufferPool().PutBuffer(writeBuffer)
 }
 
 func (s *RealSecurityTCPSocket) startBackgroundWriteTask() {
 	s.locker = new(sync.Mutex)
 	s.cond = sync.NewCond(s.locker)
-	s.writeLocker = new(sync.Mutex)
-	s.sendTimer = util.NewOneShotTimer()
 	go func() {
 		for {
+			fmt.Println("startbackgroundWriteTask")
 			// waiting for singal
 			s.cond.L.Lock()
 			s.cond.Wait()
+			s.allAcceptSocketLocker.RLock()
 			for sid, _ := range s.allAcceptSocket {
 				s.startOneWriteTask(sid)
 			}
+			s.allAcceptSocketLocker.RUnlock()
 			s.cond.L.Unlock()
 		}
 	}()
 }
 
-func (s *RealSecurityTCPSocket) writeInBackground(writeData []byte) {
+func (s *RealSecurityTCPSocket) writeInBackground(sid int, writeData []byte) {
 	writeDataSize := len(writeData)
 	var writeBuffer bytes.Buffer
 	writeBuffer.Write(writeData)
@@ -376,7 +408,7 @@ func (s *RealSecurityTCPSocket) writeInBackground(writeData []byte) {
 	for writeDataSize > 0 {
 		readSize, _ := writeBuffer.Read(*cacheBuffer)
 		contentBuffer := (*cacheBuffer)[:readSize]
-		frameBuffer := newContentBuffer(&contentBuffer, string(s.aesKey))
+		frameBuffer := newContentBuffer(sid, &contentBuffer, string(s.aesKey))
 		_, err := s.writeAll(frameBuffer)
 		if err != nil {
 			fmt.Println("writeAll error:", err)
@@ -387,41 +419,54 @@ func (s *RealSecurityTCPSocket) writeInBackground(writeData []byte) {
 }
 
 func (s *RealSecurityTCPSocket) writeVirtualData(sid int, data []byte) (int, error) {
-	if _, ok := s.allAcceptSocket[sid]; ok {
+	if s.status != status_Transfering {
+		return 0, errors.New("socket is not working")
+	}
+	s.allAcceptSocketLocker.RLock()
+	if _, ok := s.allAcceptSocket[sid]; !ok {
 		return 0, errors.New("invalid sid")
 	}
 	virtualSocket := s.allAcceptSocket[sid]
-	if virtualSocket.status != status_Transfering {
-		return 0, errors.New("socket is not working")
-	}
-	virtualSocket.writeLocker.Lock()
-	virtualSocket.writeDataBuffer.Write(writeData)
-	virtualSocket.writeLocker.Unlock()
-	virtualSocket.signalType = signalType_WriteEvent
-	s.cond.Signal()
-
-	return len(writeData), nil
-}
-
-func (s *RealSecurityTCPSocket) readVirtualData(sid int, data []byte) (int, error) {
-	if _, ok := s.allAcceptSocket[sid]; ok {
-		return 0, errors.New("invalid sid")
-	}
-	virtualSocket := s.allAcceptSocket[sid]
-	virtualSocket.readLocker.Lock()
-	defer virtualSocket.readLocker.Unlock()
-
-	if virtualSocket.status != status_Transfering {
-		return 0, errors.New("socket is not working")
-	}
+	s.allAcceptSocketLocker.RUnlock()
 	if virtualSocket.stopError != nil {
 		return 0, virtualSocket.stopError
 	}
-	currentReadDataLength := len(readData)
+	virtualSocket.writeLocker.Lock()
+	virtualSocket.writeDataBuffer.Write(data)
+	virtualSocket.writeLocker.Unlock()
+	s.signalType = signalType_WriteEvent
+	s.cond.Signal()
+
+	return len(data), nil
+}
+
+func (s *RealSecurityTCPSocket) readVirtualData(sid int, data []byte) (int, error) {
+	if s.status != status_Transfering {
+		return 0, errors.New("socket is not working")
+	}
+	s.allAcceptSocketLocker.RLock()
+	if _, ok := s.allAcceptSocket[sid]; !ok {
+		return 0, errors.New("invalid sid")
+	}
+	virtualSocket := s.allAcceptSocket[sid]
+	s.allAcceptSocketLocker.RUnlock()
+	if virtualSocket.stopError != nil {
+		return 0, virtualSocket.stopError
+	}
+
+	virtualSocket.readNotifyCond.L.Lock()
+	virtualSocket.readNotifyCond.Wait()
+	defer virtualSocket.readNotifyCond.L.Unlock()
+	virtualSocket.readLocker.Lock()
+	defer virtualSocket.readLocker.Unlock()
+	if virtualSocket.stopError != nil {
+		return 0, virtualSocket.stopError
+	}
+	currentReadDataLength := len(data)
 	if virtualSocket.readDataBuffer.Len() < currentReadDataLength {
 		currentReadDataLength = virtualSocket.readDataBuffer.Len()
 	}
-	readSize, err := virtualSocket.readDataBuffer.Read(readData)
+	readSize, err := virtualSocket.readDataBuffer.Read(data)
 	return readSize, err
 }
 
@@ -443,4 +488,14 @@ func (s *RealSecurityTCPSocket) writeAll(data []byte) (int, error) {
 		}
 	}
 	return totalWriteSize, nil
+}
+
+func (r *RealSecurityTCPSocket) closeSocketBySid(sid int) {
+	r.allAcceptSocketLocker.Lock()
+	if _, ok := r.allAcceptSocket[sid]; ok {
+		buffer := newCloseBuffer(sid, string(r.aesKey))
+		r.writeAll(buffer)
+		delete(r.allAcceptSocket, sid)
+	}
+	r.allAcceptSocketLocker.Unlock()
 }

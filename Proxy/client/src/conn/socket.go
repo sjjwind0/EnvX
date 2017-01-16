@@ -8,31 +8,38 @@ import (
 
 const kCacheBufferSize = 4 * 1024
 
-func Listen(net string, addr string) (socket.Socket, error) {
+func Listen(net string, addr string) (socket.Listener, error) {
 	if net == "tcp" {
 		sock, err := socket.TCPSocketListen(addr)
 		return sock, err
 	} else if net == "sts" {
-		sock, err := socket.SecurityTCPSocketListen(addr)
-		return sock, err
+		realSock, err := socket.SecurityTCPSocketListen(addr)
+		return realSock, err
 	}
 	return nil, errors.New("unspport net")
 }
+
+var globalSocket *socket.RealSecurityTCPSocket = nil
 
 func Dial(net string, addr string) (socket.Socket, error) {
 	var clientSocket socket.Socket = nil
 	var err error = nil
 	if net == "tcp" {
-		clientSocket = socket.NewTCPSocket(addr)
-		err = clientSocket.Connect()
-	} else if net == "sts" {
-		var realSocket *socket.RealSecurityTCPSocket = nil
-		realSocket, err = socket.NewSecurityTCPSocket(addr)
+		tcpSocket := socket.NewTCPSocket(addr)
+		err = tcpSocket.Connect()
 		if err != nil {
 			return nil, err
 		}
-		realSocket.Connect()
-		clientSocket = realSocket.NewVirtualSocket()
+		clientSocket = tcpSocket
+	} else if net == "sts" {
+		if globalSocket == nil {
+			globalSocket = socket.NewRealSecurityTCPSocketWithAddr(addr)
+			err = globalSocket.Connect()
+			if err != nil {
+				return nil, err
+			}
+		}
+		clientSocket = globalSocket.NewClientVirtualSocket()
 	}
 	if err != nil {
 		return nil, err

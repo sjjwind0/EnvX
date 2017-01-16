@@ -23,13 +23,12 @@ type frame struct {
 	bodySize int     // sizeof(flag) + size(body)
 	flag     byte    // requestType
 	body     *[]byte // content
+	pos      int
 }
 
 type stsFrame struct {
-	bodySize int
-	flag     byte
-	sid      byte
-	body     *[]byte
+	*frame
+	sid int
 }
 
 func marshalFrame(f *frame, key string) []byte {
@@ -38,6 +37,19 @@ func marshalFrame(f *frame, key string) []byte {
 		return marshalFrameWithoutEncrypt(f, key)
 	}
 	return marshalFrameWithEncrypt(f, key)
+}
+
+func translateToStsFrame(f *frame) *stsFrame {
+	stsFrame := new(stsFrame)
+	stsFrame.frame = f
+
+	if stsFrame.body != nil {
+		stsBody := *f.body
+		var sid int = (int(stsBody[0]) << 24) | (int(stsBody[1]) << 16) | (int(stsBody[2]) << 8) | int(stsBody[3])
+		stsFrame.pos = 4
+		stsFrame.sid = sid
+	}
+	return stsFrame
 }
 
 func marshalFrameWithoutEncrypt(f *frame, key string) []byte {
@@ -156,31 +168,48 @@ func newNewRequestBuffer(key string) []byte {
 	return marshalFrame(f, key)
 }
 
-func newContentBuffer(body *[]byte, key string) []byte {
-	f := new(frame)
-	f.flag = reqeustType_Content
-	f.body = body
-	return marshalFrame(f, key)
-}
-
-func newCloseBuffer(key string) []byte {
-	f := new(frame)
-	f.flag = requestType_Close
-	f.body = nil
-	return marshalFrame(f, key)
-}
-
-func newErrorBuffer(msg string, key string) []byte {
-	f := new(frame)
-	f.flag = requestType_Error
-	body := []byte(msg)
-	f.body = &body
-	return marshalFrame(f, key)
-}
-
 func newPingBuffer(key string) []byte {
 	f := new(frame)
 	f.flag = requestType_Ping
 	f.body = nil
+	return marshalFrame(f, key)
+}
+
+func newBodyFromSid(sid int, body *[]byte) *[]byte {
+	var bodyBuffer bytes.Buffer
+	sidArray := []byte{
+		byte(sid >> 24),
+		byte((sid >> 16) & 0xFF),
+		byte((sid >> 8) & 0xFF),
+		byte(sid & 0xFF),
+	}
+	bodyBuffer.Write(sidArray)
+	if body != nil {
+		bodyBuffer.Write(*body)
+	}
+	var bodyBytes []byte = make([]byte, bodyBuffer.Len())
+	copy(bodyBytes, bodyBuffer.Bytes())
+	return &bodyBytes
+}
+
+func newContentBuffer(sid int, body *[]byte, key string) []byte {
+	f := new(frame)
+	f.flag = reqeustType_Content
+	f.body = newBodyFromSid(sid, body)
+	return marshalFrame(f, key)
+}
+
+func newCloseBuffer(sid int, key string) []byte {
+	f := new(frame)
+	f.flag = requestType_Close
+	f.body = newBodyFromSid(sid, nil)
+	return marshalFrame(f, key)
+}
+
+func newErrorBuffer(sid int, msg string, key string) []byte {
+	f := new(frame)
+	f.flag = requestType_Error
+	msgBytes := []byte(msg)
+	f.body = newBodyFromSid(sid, &msgBytes)
 	return marshalFrame(f, key)
 }

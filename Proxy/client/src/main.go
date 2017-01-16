@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"conn"
 	"conn/socket"
 	"fmt"
@@ -8,9 +9,12 @@ import (
 	"os"
 	"proxy"
 	"rule"
+	"strconv"
 	"strings"
-	"time"
 )
+
+var socketMap map[int]socket.Socket = make(map[int]socket.Socket)
+var currentSid = 0
 
 const (
 	kStatMode_Unknown = 0x0
@@ -76,30 +80,15 @@ func startProxyTest() {
 	}
 }
 
-func handleSocket(sock socket.Socket) {
-	go func() {
-		var readBuffer []byte = make([]byte, 1024)
-		for {
-			size, err := sock.Read(readBuffer)
-			if err == io.EOF {
-				time.Sleep(time.Millisecond * 500)
-				continue
-			}
-			fmt.Println(string(readBuffer[:size]))
-		}
-	}()
+func handleSocket(sid int, sock socket.Socket) {
+	var readBuffer []byte = make([]byte, 1024)
 	for {
-		var readString string
-		fmt.Scanln(&readString)
-		fmt.Println("read string:", readString)
-		switch readString {
-		case "quit":
-			os.Exit(0)
-		case "close":
-			sock.Close()
-		default:
-			sock.Write([]byte(readString))
+		size, err := sock.Read(readBuffer)
+		if err == io.EOF {
+			fmt.Println("continue")
+			continue
 		}
+		fmt.Println("sid:", sid, "\trecv content:", string(readBuffer[:size]))
 	}
 }
 
@@ -115,22 +104,36 @@ func startSocketTest() {
 		}
 	}
 	if isClient {
-		clientSocket, err := conn.Dial("sts", "127.0.0.1:12345")
-		if err != nil {
-			fmt.Println("dial failed:", err)
-			return
-		}
-		fmt.Println("connect success")
-		handleSocket(clientSocket)
+		startClient()
 	}
 	if isServer {
-		var listener socket.Listener
-		var err error
-		listener, err = conn.Listen("sts", "127.0.0.1:12345")
-		if err != nil {
-			fmt.Println("Error listening:", err)
-			return
-		}
+		startServer()
+	}
+}
+
+func startClient() {
+	fmt.Println("start client...")
+	clientSocket, err := conn.Dial("sts", "127.0.0.1:12345")
+	if err != nil {
+		fmt.Println("dial failed:", err)
+		return
+	}
+	fmt.Println("connect success")
+	socketMap[currentSid] = clientSocket
+	currentSid = currentSid + 1
+	go handleSocket(currentSid-1, clientSocket)
+}
+
+func startServer() {
+	fmt.Println("start server...")
+	var listener socket.Listener
+	var err error
+	listener, err = conn.Listen("sts", "127.0.0.1:12345")
+	if err != nil {
+		fmt.Println("Error listening:", err)
+		return
+	}
+	go func() {
 		defer listener.Close()
 		for {
 			acceptSocket, err := listener.Accept()
@@ -138,14 +141,71 @@ func startSocketTest() {
 				fmt.Println("Error accepting: ", err)
 				return
 			}
-			go func(acceptSocket socket.Socket) {
-				defer acceptSocket.Close()
-				handleSocket(acceptSocket)
-			}(acceptSocket)
+			socketMap[currentSid] = acceptSocket
+			currentSid = currentSid + 1
+			fmt.Println("accept success")
+			go handleSocket(currentSid-1, acceptSocket)
+		}
+	}()
+}
+
+func sendMessage(sid int, msg string) {
+	fmt.Println("send message: ", sid, msg)
+	if sock, ok := socketMap[sid]; ok {
+		_, err := sock.Write([]byte(msg))
+		if err != nil {
+			fmt.Println("send error:", err)
+		}
+	}
+}
+
+func listAllSocket() {
+	fmt.Println("list all socket")
+	for sid, _ := range socketMap {
+		fmt.Println("socket:", sid)
+	}
+}
+
+func closeSocket(sid int) {
+	if sock, ok := socketMap[sid]; ok {
+		sock.Close()
+	}
+}
+
+func startMultiSocketTest() {
+	for {
+		fmt.Println("waiting command...")
+		reader := bufio.NewReader(os.Stdin)
+		command, _ := reader.ReadString('\n')
+		fmt.Println("command:", command)
+		switch command[:len(command)-1] {
+		case "listen":
+			startServer()
+		case "list":
+			listAllSocket()
+		case "dial":
+			startClient()
+		case "stop":
+		default:
+			commandList := strings.Split(command, " ")
+			if len(commandList) == 3 {
+				switch commandList[0] {
+				case "send":
+					sid, _ := strconv.Atoi(commandList[1])
+					msg := commandList[2]
+					sendMessage(sid, msg)
+				}
+			} else if len(commandList) == 2 {
+				switch commandList[0] {
+				case "close":
+					sid, _ := strconv.Atoi(commandList[1])
+					closeSocket(sid)
+				}
+			}
 		}
 	}
 }
 
 func main() {
-	startSocketTest()
+	startMultiSocketTest()
 }

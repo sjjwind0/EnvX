@@ -43,7 +43,7 @@ func (t *TCPSocket) Accept() (Socket, error) {
 		fmt.Println("SecurityTCPSocket accept error:", err)
 		return nil, err
 	}
-	securityTCPSocket := newSecurityServerTCPSocketFromNetConn(acceptConn)
+	securityTCPSocket := newServerTCPSocketFromNetConn(acceptConn)
 	return securityTCPSocket, nil
 }
 
